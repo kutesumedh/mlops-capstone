@@ -1,14 +1,38 @@
+import logging
 from fastapi import FastAPI
+from pydantic import BaseModel
 import joblib
 
-# TODO: Load model from MLflow instead of local pkl
+# Configure logging to write to logs.txt
+logging.basicConfig(
+    filename="logs.txt",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# Load model
 model = joblib.load("model.pkl")
 
-app = FastAPI()
+app = FastAPI(title="ML Model API with FastAPI")
+
+class InputData(BaseModel):
+    area: float
 
 @app.post("/predict")
-def predict(data: dict):
-    # TODO: Handle proper preprocessing
-    area = data["area"]
-    prediction = model.predict([[area]])[0]
-    return {"prediction": prediction}
+def predict(data: InputData):
+    try:
+        # Example validation: area must be positive
+        if data.area <= 0:
+            raise ValueError("Area must be positive")
+
+        # Make prediction
+        prediction = model.predict([[data.area]])[0]
+
+        # Log success
+        logging.info(f"Prediction successful: input={data.area}, output={prediction}")
+        return {"prediction": float(prediction)}
+
+    except Exception as e:
+        # Log error
+        logging.error(f"Prediction failed: input={data.area}, error={str(e)}")
+        return {"error": str(e)}
